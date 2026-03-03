@@ -1,0 +1,181 @@
+ISP core router in Skopje is connected to the Internet backbone via WAN link.
+The ISP backbone operates in OSPF Area 0, while regional MAN networks (Veles)
+operate in separate areas for scalability.
+
+
+------------------SKOPJE DATA CENTER------------------
+(Tuka e Internetot)
+
+ISP R-Cloud
+10.0.0.0
+255.255.255.252    WILDCARD: 0.0.0.0.3
+2 bits za hosts
+2^2 = 4 adresi
+CIDR /30
+gateways: 10.0.0.1, 10.0.0.2
+broadcast: 10.0.0.0000 00|11 -> 10.0.0.3
+
+ISP-R - Servers
+10.0.0.32
+255.255.255.224   WILDCARD: 0.0.0.31
+5 bits za hosts
+2^5 = 30 adresi
+CIDR /27
+gateway: 10.0.0.33
+hosts static zatoa so se serveri 
+broadcast: 10.0.0.000|1 1111 -> 10.0.0.63
+hosts: 10.0.0.33 - 10.0.0.62
+
+
+ISP-R - R1-Office
+10.0.0.64
+255.255.255.252  WILDCARD: 0.0.0.3
+2 bits za hosts
+2^2 = 4 adresi
+CIDR /30
+broadcast: 10.0.0.0100 00|11 -> 10.0.0.67
+gateway: 10.0.0.65 10.0.0.66
+
+
+R1-Office - PCs
+10.0.0.96
+255.255.255.224
+2^5 = 30 adresi
+CIDR /27
+gateway: 10.0.0.95
+broadcast: 10.0.0.011|0 0000 -> 10.0.0.127
+hosts: 10.0.0.95 - 10.0.0.126
+DHCP za hosts
+
+
+
+-----SKOPJE FINKI-----
+(Potreben e NAT)
+(STP scenario F-switch1, F-switch2, F-switch3 kade BP e fa0/1 na sw2)
+
+ISP-R - ARR-Finki
+10.0.1.0  
+CIDR /30
+255.255.255.252 	WILDCARD 0.0.0.3
+2 bits za hosts -> 2^2 = 4 adresi
+gateways: 10.0.1.1, 10.0.1.2
+hosts: 10.0.1.1 - 10.0.1.2
+broadcast: 10.0.1.3
+
+ABR-Finki - R-Finki
+10.0.1.4
+CIDR /30
+255.255.255.252 	WILDCARD 0.0.0.3
+gateways: 10.0.1.5, 10.0.1.6
+broadcast: 10.0.1.7
+
+R-Finki - VLAN10 
+10.0.10.0 		WILDCARD 0.0.0.31
+255.255.255.224
+CIRD /27
+5 bits za hosts -> 2^5 = 30 adresi
+gateway: 10.0.10.1
+hosts: 10.0.10.1 - 10.0.10.30
+ip dhcp excluded address 10.0.10.1
+broadcast: 10.0.10.31
+
+
+R-Finki - VLAN20
+10.0.20.0
+255.255.255.224
+CIDR /27 	WILDCARD 0.0.0.31
+5 bits za hosts -> 2^5 = 30 adresi
+gateway: 10.0.20.1
+hosts: 10.0.20.1 - 10.0.20.30
+ip dhcp excluded address 10.0.20.1
+broadcast: 10.0.20.31
+
+DHCPs (R-Finki server)
+VLAN10
+VLAN20
+Wireless
+vnesi DNS server 10.0.0.34 ??
+
+ACL za VLANS za NAT
+access-list 1 permit vlan all
+Firewalls i extended ACLs later
+
+NAT na ABR-Finki
+ip nat inside na fa0/0
+ip nat outside na fa0/1
+ip nat source list 1 interface fa0/1 overload
+
+
+
+FIREWALLS:
+VLAN10 da nema pristap do VLAN20 VLAN30 da nemoze da otvara http i da bide blocked ping/icmp
+VLAN20 da nema pristap do VLAN10 VLAN30
+VLAN30 da nema pristap do VLAN10 VLAN20
+
+---------------VELES ISP---------------------------
+ISP-Skopje - ABR-ISP-VelesR
+10.2.0.0  → Veles MAN 
+255.255.255.252     WILDCARD 0.0.0.3
+CIDR /30
+2^2 = 4 adresi
+gateways: 10.2.0.1, 10.2.0.2
+broadcast: 10.2.0.3
+
+ABR-ISP-VelesR - ISP-VelesR
+10.2.0.4
+255.255.255.252      WILDCARD 0.0.0.3
+CIDR /30
+gateways: 10.2.0.5, 10.2.0.6
+broadcast: 10.2.0.7
+
+ISP-VelesR - ISP-V-LAN
+10.2.1.0 	WILDCARD 0.0.0.31
+CIDR /27
+gateways: 10.2.1.1, 10.2.1.2
+hosts: 10.2.1.1 - 10.2.1.29
+broadcast: 10.2.1.31
+
+
+ISP-VelesR - WirelessHomeRoutersLAN
+10.2.1.32
+255.255.255.224		WILDCARD 0.0.0.31
+CIDR /27
+gateway: 10.2.1.33
+hosts: 10.2.1.34 - 10.2.1.62
+broadcast: 10.2.1.63
+
+ISP-VelesR - Opstina-VelesR
+10.2.1.64
+255.255.255.252
+CIDR /30
+gateway: 10.2.1.65, 10.2.1.66
+broadcast: 10.2.1.67
+
+Opstina-VelesR - VLANs
+10.3.10.0
+10.3.20.0
+10.3.30.0
+255.255.255.224
+CIDR /27
+gateway: 10.3.10.1, 10.3.20.1, 10.3.30.1
+
+
+
+-----------OSPF--------------
+dali treba direktni ruti da se povrzat ili kako odi konkretno?
+
+ISP-Router -> 10.0.0.0 area 0, 10.0.0.64 area 0, 10.0.0.32 area 0,
+R1-Office -> 10.0.0.96 area 0, 10.0.0.64 area 0
+
+ABR-Finki -> 10.0.1.0 area 0, 10.0.1.4 area 10
+R-Finki -> 10.0.1.4 area 10, 10.0.10.0 area 10, 10.0.20.0 area 10
+________________________________________
+
+DNS server so ip 10.0.0.36
+i dns adresa 10.0.0.35 (Adresata na HTTPS serverot)
+
+
+NAT: dali treba NAT vo sekoja oblast da se stava vo mrezhite kaj hosts
+DHCP: dali ako imam DHCP server vo mrezha 10.0.0.32 ke moze da bide dhcp za mrezha 10.0.0.96 i
+ke treba da odi PCs -> sw1 -> R1-Office -> ISP-Router -> sw2 -> DHCP server (USPESNO)
+dali treba helper adress da se postavi na R1-office i da bide 10.0.0.33 (dhcp address) (USPESNO)
